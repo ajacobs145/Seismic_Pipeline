@@ -1,0 +1,71 @@
+version: '3.1'
+
+services:
+
+  spark-master:
+    image: bitnami/spark:latest
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_MASTER_WEBUI_PORT=8081
+    ports:
+      - "8081:8081"
+      - "7077:7077"
+    volumes:
+      - spark-data:/bitnami
+      - ./include:/usr/local/airflow/include
+      - ./apps:/opt/spark-apps
+      - ./data:/opt/spark-data
+    networks:
+      - airflow
+
+  spark-worker:
+    image: bitnami/spark:latest
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+      - ./include:/usr/local/airflow/include
+      - spark-data:/bitnami
+      - ./apps:/opt/spark-apps
+      - ./data:/opt/spark-data
+    depends_on:
+      - spark-master
+    networks:
+      - airflow
+
+  postgres:
+    image: postgres:13
+    restart: always
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - airflow
+  
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=root@root.com
+      - PGADMIN_DEFAULT_PASSWORD=root
+    ports:
+      - "8050:80"
+    networks:
+      - airflow
+
+volumes:
+  spark-data:
